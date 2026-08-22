@@ -1,0 +1,43 @@
+{
+  "id": "vendit",
+  "title": "Vendit™ Persistent Shops",
+  "description": "Persistent, scene-aware vending machines for Cyberpunk RED with 2077/2045 Vendit skins, generated Monk's Tile binder, active-Scene CitiNet location pings, configurable player proximity, dynamic stock, Simple Calendar background traffic, curated pricing, and safer Tile/template lifecycle handling.",
+  "version": "1.2.5",
+  "authors": [
+    {
+      "name": "Lt Atlas"
+    }
+  ],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12.343",
+    "maximum": "12"
+  },
+  "esmodules": [
+    "scripts/vendit.js"
+  ],
+  "socket": true,
+  "relationships": {
+    "systems": [
+      {
+        "id": "cyberpunk-red-core",
+        "type": "system",
+        "compatibility": {
+          "minimum": "0.92.1",
+          "verified": "0.92.4"
+        }
+      }
+    ],
+    "recommends": [
+      {
+        "id": "foundryvtt-simple-calendar",
+        "type": "module"
+      },
+      {
+        "id": "monks-active-tiles",
+        "type": "module"
+      }
+    ]
+  },
+  "readme": "README.md"
+}
