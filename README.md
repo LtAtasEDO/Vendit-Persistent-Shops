@@ -1,9 +1,11 @@
-# Vendit-Persistent-Shops — Foundry VTT v12
+# Vendit™ Persistent Shops — Foundry VTT v12
 Persistent, scene-aware vending machines for Cyberpunk RED with 2077/2045 era skins, generated Monk's Tile Binder, active-scene CitiNet location pings, configurable player proximity, dynamic stock, Simple Calendar background traffic, curated pricing and safer Tile template lifecycle handling.
 
 Module creation assisted by AI from macro v3.0.3, legacy macro can be found in Cyberpunk Red Foundry VTT Discord content sharing.
 
-Version **1.2.5** keeps the existing `vendit.db` world setting while polishing the module into a dedicated Vendit retail interface for both 2077 and 2045.
+The bundled Binder icon is now a CC0-based SVG asset recolored for Vendit using `#E64539` on `#1B1F21`, replacing the earlier WebP-based icon.
+
+Version **1.2.6** keeps the existing `vendit.db` world setting while polishing the module into a dedicated Vendit retail interface for both 2077 and 2045.
 
 ## Installation
 
@@ -22,7 +24,7 @@ Existing shops, dynamic settings, stock, prices, sale schedules, and Tile flags 
 
 ## Generated Monk's Active Tiles binder
 
-The Binder now uses the bundled `modules/vendit/assets/Vendit.webp` icon. Existing module-generated Binder macros are automatically updated to the bundled Vendit icon on startup, while an unrelated/custom macro that merely shares the name is left alone unless you explicitly use **Create / Repair Binder Macro**.
+The Binder now uses the bundled `modules/vendit/assets/Vendit.svg` icon. Existing module-generated Binder macros are automatically updated to the bundled Vendit icon on startup, while an unrelated/custom macro that merely shares the name is left alone unless you explicitly use **Create / Repair Binder Macro**.
 
 The module automatically creates **Vendit™ Binder** for the primary GM if it is missing. It can also be repaired from Vendit Options or Dynamic Network.
 
