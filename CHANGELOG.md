@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.6
+
+- Replaced the bundled **Vendit™ Binder** icon with an SVG-based asset derived from the chosen CC0 SVG Repo vending-machine icon, recolored for Vendit using `#E64539` on `#1B1F21`.
+- Changed the Binder macro to use `modules/vendit/assets/Vendit.svg` instead of the older WebP asset.
+- Existing module-generated Binder macros automatically update to the new SVG icon on startup, and **Create / Repair Binder Macro** also restores the SVG icon.
+- Bundled the new `assets/Vendit.svg` file directly in the module for cleaner redistribution and licensing provenance.
+- No changes to Vendit data, IDs, inventory, pricing, Tile bindings, proximity, CitiNet, dynamic stock, or Simple Calendar behavior.
+
 ## 1.2.5
 
 - Polished the **Edit Vendit** identity row so the **Name** field receives substantially more horizontal room while the trigger **ID** remains at its practical 240 px width.
