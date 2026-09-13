@@ -1,4 +1,4 @@
-# Vendit™ Persistent Shops — Foundry VTT v12
+# Vendit Persistent Shops for use with Cyberpunk RED — Foundry VTT v12
 Persistent, scene-aware vending machines for Cyberpunk RED with 2077/2045 era skins, generated Monk's Tile Binder, active-scene CitiNet location pings, configurable player proximity, dynamic stock, Simple Calendar background traffic, curated pricing and safer Tile template lifecycle handling.
 
 Module creation assisted by AI from macro v3.0.3, legacy macro can be found in Cyberpunk Red Foundry VTT Discord content sharing.
@@ -100,3 +100,13 @@ game.vendit.ensureBinderMacro({ repair: true, notify: true });
 ```
 
 Legacy `game.venditrun(...)` remains available.
+
+## Legal / Homebrew Content Policy
+
+This is unofficial homebrew content for use with Cyberpunk RED.
+
+This project is provided free of charge under the R. Talsorian Games Homebrew Content Policy.
+
+Vendit Persistent Shops for use with Cyberpunk RED is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.
+
+Cyberpunk RED and related properties are the property of R. Talsorian Games and their respective licensees.
