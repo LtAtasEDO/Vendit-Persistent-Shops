@@ -5,7 +5,7 @@ Module creation assisted by AI from macro v3.0.3, legacy macro can be found in C
 
 The bundled Binder icon is now a CC0-based SVG asset recolored for Vendit using `#E64539` on `#1B1F21`, replacing the earlier WebP-based icon.
 
-Version **1.2.6** keeps the existing `vendit.db` world setting while polishing the module into a dedicated Vendit retail interface for both 2077 and 2045.
+Version **1.3.0** keeps the existing `vendit.db` world setting while polishing the module into a dedicated Vendit retail interface for both 2077 and 2045.
 
 ## Installation
 
@@ -13,8 +13,26 @@ Version **1.2.6** keeps the existing `vendit.db` world setting while polishing t
 2. Replace `{Foundry User Data}/Data/modules/vendit` with the `vendit` folder from this ZIP.
 3. Restart Foundry VTT and enable **Vendit™ Persistent Shops**.
 4. Hard-refresh connected browsers.
+5. OR use Foundry Module installer via: [Manifest URL](https://github.com/LtAtasEDO/Vendit-Persistent-Shops/releases/latest/download/module.json)
 
 Existing shops, dynamic settings, stock, prices, sale schedules, and Tile flags remain under the same module ID/database.
+
+## Clickable item descriptions
+
+Click a product's **name or image** in the player shop or GM Preview to open a read-only item preview. It shows the description, available item details, market value, and current Vendit price. Sold-out products can still be inspected.
+
+Inspection does not purchase an item or open its editable sheet. With an active GM, the preview works for stock from compendiums players cannot normally open. Only the offered item's public description/details are sent; secret blocks and interactive document links are removed. Without an active GM, the source Item must be readable by the player. Missing sources show a warning.
+
+## Compatibility
+
+Foundry VTT **12** (verified **12.343**); Cyberpunk RED **0.92.1+** (verified **0.92.4**).
+
+| Recommended module | Minimum | Verified | Maximum |
+| --- | --- | --- | --- |
+| Simple Calendar | 2.4.17 | 2.4.18 | 2.4.18 |
+| Monk's Active Tile Triggers | 12.01 | 12.02 | 12.02 |
+
+These integrations remain optional. Clickable item inspection has been live-validated by the GM/player.
 
 ## Vendit UI skins
 
@@ -75,6 +93,9 @@ Automatic Tile creation can remain enabled with no template; in that state new m
 - Background NPC purchases and occasional restocks.
 - Weighted 75–115% pricing with 100% most common and discounts rare.
 - CitiNet sale pings only from Vendits on Foundry's globally active Scene.
+- Daily CitiNet ping range: **0–48**, configured in **Dynamic Network**; the default remains **1–3**. Set both Min and Max to 48 for 48 scheduled opportunities per standard in-world day.
+- Pings are spread across the advertising window (09:00–22:45 in a standard 24-hour calendar). A scene still needs an eligible sale-enabled Vendit; these are network-wide opportunities, not guaranteed messages per scene.
+- Changing the ping range rebuilds the current day schedule on the next calendar tick.
 - Skipped alarm times collapse into one message rather than spamming chat.
 
 ## Data and binding safety in 1.2.x
@@ -110,3 +131,9 @@ This project is provided free of charge under the R. Talsorian Games Homebrew Co
 Vendit Persistent Shops for use with Cyberpunk RED is unofficial content provided under the Homebrew Content Policy of R. Talsorian Games and is not approved or endorsed by RTG. This content references materials that are the property of R. Talsorian Games and its licensees.
 
 Cyberpunk RED and related properties are the property of R. Talsorian Games and their respective licensees.
+
+## Credts and Assets Notice
+
+This project is unofficial fan tooling and is not affiliated with R. Talsorian Games, Foundry Gaming LLC, or CD PROJEKT RED.
+
+As of v1.2.6 the bundled `assets/Vendit.svg` asset used from SVG Repo **Vending Machine**, **CC0 License** is recolored with Core System styling and may be recolored or further refined as needed for future releases. Full attribution and the license text are included in THIRD_PARTY_NOTICES.md.
