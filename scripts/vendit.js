@@ -1,4 +1,4 @@
-/***** Vendit™ Persistent Shops Module (v1.2.5; converted from macro v3.0.3)
+/***** Vendit™ Persistent Shops Module (v1.3.0; converted from macro v3.0.3)
  * UI: Player "Buy" button narrower (no flex-grow)
  * UI: Edit dialog uses a single scrollbar (window-content); list no longer scrolls separately
  * Fix: data-items attribute typo that broke item rows (and delete ✖ appearance)
@@ -9,13 +9,13 @@
 *****/
 
 const MODULE_ID = "vendit";
-const MODULE_VERSION = "1.2.5";
+const MODULE_VERSION = "1.3.0";
 const STORE_NS = MODULE_ID;
 const STORE_KEY = "db";
 const FLAG_VER  = 7;
 const SOCKET = `module.${MODULE_ID}`;
 const BINDER_MACRO_NAME = "Vendit™ Binder";
-const BINDER_MACRO_IMG = "modules/vendit/assets/Vendit.webp";
+const BINDER_MACRO_IMG = "modules/vendit/assets/Vendit.svg";
 
 let calendarHookBound = false;
 let calendarProcessing = false;
@@ -164,6 +164,16 @@ function bindVenditSocket(){
     if (msg.op === "purchase-response" && msg.userId === game.user.id){
       const waiter = purchaseWaiters.get(msg.nonce);
       if (waiter){ purchaseWaiters.delete(msg.nonce); waiter.resolve(msg.result); }
+      return;
+    }
+
+    if (msg.op === "item-preview" && isActiveGM()){
+      try {
+        const preview = await resolveShopPreview(msg.payload);
+        game.socket.emit(SOCKET, {op:"preview-result", nonce:msg.payload?.nonce, userId:msg.payload?.userId, preview});
+      } catch (error) {
+        game.socket.emit(SOCKET, {op:"preview-result", nonce:msg.payload?.nonce, userId:msg.payload?.userId, message:error.message || "Item preview unavailable."});
+      }
       return;
     }
 
@@ -462,6 +472,118 @@ async function drawFromTable(ref){
   return null;
 }
 
+// Read-only inspection shared with Bodega 2.4.0.
+function sanitizePreviewDescription(value){
+  const template = document.createElement("template");
+  template.innerHTML = String(value || "");
+  const allowed = new Set(["P","BR","DIV","SPAN","SECTION","B","STRONG","I","EM","U","S","DEL","SUB","SUP","UL","OL","LI","H1","H2","H3","H4","H5","H6","BLOCKQUOTE","PRE","CODE","HR","TABLE","THEAD","TBODY","TFOOT","TR","TH","TD"]);
+  const blocked = new Set(["SCRIPT","STYLE","IFRAME","OBJECT","EMBED","FORM","INPUT","BUTTON","SELECT","TEXTAREA","SVG","MATH","TEMPLATE"]);
+  const copy = (source, target) => {
+    for (const node of source.childNodes){
+      if (node.nodeType === 3){
+        // Keep human labels without sending linked UUIDs to the preview client.
+        const text = node.textContent.replace(/@(UUID|Item|Actor|JournalEntry|Macro|Embed)\[[^\]]*\](?:\{([^}]*)\})?/gi, (_, type, label) => label || "[Linked content]");
+        target.appendChild(document.createTextNode(text));
+      } else if (node.nodeType === 1){
+        if (blocked.has(node.tagName) || node.classList.contains("secret") || node.hidden) continue;
+        if (!allowed.has(node.tagName)){ copy(node, target); continue; }
+        const clean = document.createElement(node.tagName.toLowerCase());
+        for (const attr of ["colspan","rowspan"]){
+          if (["TD","TH"].includes(node.tagName) && node.hasAttribute(attr)) clean.setAttribute(attr, String(Math.min(50, Math.max(1, Number(node.getAttribute(attr)) || 1))));
+        }
+        copy(node, clean);
+        target.appendChild(clean);
+      }
+    }
+  };
+  const output = document.createElement("div");
+  copy(template.content, output);
+  return output.innerHTML;
+}
+function previewImagePath(value){
+  const path = String(value || "").trim();
+  return path && (/^https?:\/\//i.test(path) || !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(path)) ? path : "icons/svg/box.svg";
+}
+function buildShopPreview(source, stock){
+  const sys = source?.system || {};
+  const fields = [
+    ["variety","Variety"], ["weaponType","Weapon type"], ["weaponSkill","Weapon skill"],
+    ["damage","Damage"], ["rof","Rate of fire"], ["attackmod","Attack modifier"],
+    ["handsReq","Hands required"], ["concealable","Concealable"], ["quality","Quality"],
+    ["sp","Stopping power"], ["penalty","Armor penalty"], ["location","Location"],
+    ["weight","Weight"], ["humanityLoss","Humanity loss"], ["installation","Installation"]
+  ];
+  const details = fields.flatMap(([key,label]) => {
+    const value = sys[key];
+    return value !== null && value !== undefined && value !== "" && ["string","number","boolean"].includes(typeof value)
+      ? [{label, value:String(value)}] : [];
+  });
+  const description = typeof sys.description === "string" ? sys.description : sys.description?.value;
+  return {
+    name:String(stock.name || source.name || "Item"), img:previewImagePath(stock.img || source.img),
+    kind:String(source.type || "Item"), marketPrice:getItemMarketPrice(source), offeredPrice:Number(stock.price || 0),
+    details, description:sanitizePreviewDescription(description)
+  };
+}
+async function resolveShopPreview(payload){
+  const user = game.users?.get?.(payload?.userId);
+  if (!user) throw new Error("The requesting user is no longer available.");
+  const db = await loadAll();
+  const shop = db.vendits?.[payload?.shopId];
+  if (!shop) throw new Error("This Vendit is no longer available.");
+  const buyer = payload?.buyerUuid ? await byUUID(payload.buyerUuid) : null;
+  if (!user.isGM && (!buyer || !buyer.testUserPermission?.(user, "OWNER"))) throw new Error("Choose a customer character you control.");
+  if (!user.isGM && shop.sceneOnly && shop.sceneId && shop.sceneId !== user.viewedScene) throw new Error("This Vendit is not available on your scene.");
+  // Resolve the current stock entry, never an arbitrary client-supplied document.
+  const stock = (shop.items || []).find(item => item.uuid === payload.itemUuid);
+  if (!stock) throw new Error("That item changed. Re-open the Vendit and try again.");
+  const source = await byUUID(stock.uuid);
+  if (!source || source.documentName !== "Item") throw new Error("The source item is no longer available for inspection.");
+  if (!game.user?.isGM && !source.testUserPermission?.(game.user, "OBSERVER")) throw new Error("An active GM is needed to preview this item.");
+  return buildShopPreview(source, stock);
+}
+function showShopPreview(preview, accent){
+  const bodyId = `vendit-preview-${randomID()}`;
+  const style = document.createElement("style");
+  style.textContent = makeCSS(bodyId, accent) + `
+    #${bodyId} .preview-head{display:flex;align-items:center;gap:14px;padding:14px}
+    #${bodyId} .preview-head img{width:72px;height:72px;object-fit:contain}
+    #${bodyId} .preview-name{font-size:20px;font-weight:800;overflow-wrap:anywhere}
+    #${bodyId} .preview-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:14px}
+    #${bodyId} .preview-description{padding:14px;max-height:55vh;overflow:auto;overflow-wrap:anywhere;white-space:normal}
+    #${bodyId} .preview-description table{width:100%;border-collapse:collapse;display:block;overflow:auto}
+    #${bodyId} .preview-description th,#${bodyId} .preview-description td{padding:6px;border:1px solid var(--accent)}
+    #${bodyId} .preview-description pre{white-space:pre-wrap}
+  `;
+  const content = `<div id="${bodyId}"><div class="wrap">
+    <div class="card preview-head"><img src="${esc(previewImagePath(preview.img))}" alt=""><div><div class="preview-name">${esc(preview.name)}</div><div class="muted">${esc(preview.kind)} • Market value ${esc(preview.marketPrice)} eb • Vendit price ${esc(preview.offeredPrice)} eb</div><div class="muted">Read-only item preview</div></div></div>
+    ${preview.details?.length ? `<div class="card preview-details">${preview.details.map(d=>`<div><b>${esc(d.label)}:</b> ${esc(d.value)}</div>`).join("")}</div>` : ""}
+    <div class="card preview-description">${sanitizePreviewDescription(preview.description) || '<p class="muted">No description provided.</p>'}</div>
+  </div></div>`;
+  return new Dialog({title:"Vendit™ — Item Preview", content, buttons:{close:{label:"Close"}}, render:html=>{
+    document.head.appendChild(style);
+    const app = html[0].closest(".app");
+    app.classList.add(`dialog-host-${bodyId}`);
+    forceFooterButtons(app, accent);
+  }, close:html=>cleanupDialogAfterClose(html, {bodyId, style})}, {width:720,resizable:true}).render(true);
+}
+async function openStockPreview(shop, stock, buyer, accent){
+  const payload = {nonce:purchaseNonce(), userId:game.user.id, shopId:shop.id, buyerUuid:buyer.uuid, itemUuid:stock.uuid};
+  if (game.user.isGM || !game.users?.activeGM) return showShopPreview(await resolveShopPreview(payload), accent);
+  const result = await new Promise((resolve,reject)=>{
+    const timeout = setTimeout(()=>{game.socket.off(SOCKET, onResult); reject(new Error("The GM did not respond to the item preview. Try again."));}, 8000);
+    const onResult = message => {
+      if (message?.op !== "preview-result" || message.nonce !== payload.nonce || message.userId !== game.user.id) return;
+      clearTimeout(timeout); game.socket.off(SOCKET,onResult);
+      if (message.preview) resolve(message.preview); else reject(new Error(message.message || "Item preview unavailable."));
+    };
+    game.socket.on(SOCKET,onResult);
+    game.socket.emit(SOCKET,{op:"item-preview",payload});
+  });
+  return showShopPreview(result,accent);
+}
+
+
 /* -------------------- theme -------------------- */
 function makeCSS(bodyId, accent="#00FFF7"){
   const is2045 = String(accent).toUpperCase() === "#E64539";
@@ -584,6 +706,10 @@ function makeCSS(bodyId, accent="#00FFF7"){
 #${bodyId} .product-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:4px;color:var(--muted);font-size:11px}
 #${bodyId} .price{color:var(--secondary);font-size:16px;font-weight:950}
 #${bodyId} .stock{color:var(--muted);font-weight:750}
+#${bodyId} .inspect-image{border:0;background:transparent;box-shadow:none;padding:0;margin:0;min-width:40px;width:40px;height:40px;flex:0 0 40px;cursor:pointer}
+#${bodyId} button.inspect-name{display:block;text-align:left;border:0;background:transparent;box-shadow:none;padding:0;margin:0;color:var(--text);width:auto;max-width:100%;line-height:1.4;cursor:pointer}
+#${bodyId} .inspect-name:hover{text-decoration:underline;color:var(--accent)}
+#${bodyId} [data-inspect]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 #${bodyId} .buy{min-width:116px;height:40px;border-color:var(--secondary);color:var(--secondary);font-weight:950}
 #${bodyId} .buy:hover:not([disabled]){border-color:var(--accent);color:var(--accent)}
 
@@ -1011,23 +1137,30 @@ async function runNpcCycle(shop, now = calendarTimestamp(), {replace=false, defa
 }
 function generateDailySaleSchedule(db, now, date){
   const globalDynamic = db.defaults.dynamic || defaultGlobalDynamic();
-  const min = clampInt(globalDynamic.salePingsMin, 0, 12);
-  const max = clampInt(globalDynamic.salePingsMax, min, 12);
+  const min = clampInt(globalDynamic.salePingsMin, 0, 48);
+  const max = clampInt(globalDynamic.salePingsMax, min, 48);
   const count = randomInt(min, max);
   const start = calendarDayStart(date);
   const cfg = calendarTimeConfig();
   const hourSeconds = Number(cfg.minutesInHour || 60) * Number(cfg.secondsInMinute || 60);
-  const latestHour = Math.max(1, Number(cfg.hoursInDay || 24) - 2);
+  const latestHour = Math.max(0, Number(cfg.hoursInDay || 24) - 2);
   const earliestHour = Math.min(9, latestHour);
+  const minutesInHour = Math.max(1, Number(cfg.minutesInHour || 60));
+  const candidates = [];
+  for (let hour = earliestHour; hour <= latestHour; hour++){
+    // Quarter-hour slots in standard calendars; valid quarter-hour equivalents otherwise.
+    const minutes = [...new Set([0, 1, 2, 3].map(part => Math.floor(part * minutesInHour / 4)))];
+    for (const minute of minutes) candidates.push(start + hour * hourSeconds + minute * Number(cfg.secondsInMinute || 60));
+  }
+  const slotCount = Math.min(count, candidates.length);
   const slots = [];
-  let attempts = 0;
-  while (slots.length < count && attempts < 100){
-    attempts++;
-    const hour = randomInt(earliestHour, latestHour);
-    const minute = [0, 15, 30, 45][randomInt(0, 3)];
-    const ts = start + hour * hourSeconds + minute * Number(cfg.secondsInMinute || 60);
-    if (slots.some(existing => Math.abs(existing - ts) < hourSeconds * 2)) continue;
-    slots.push(ts);
+  // Pick one random slot per equal portion of the advertising window. This
+  // guarantees the requested count when enough slots exist, without duplicates
+  // or the former two-hour exclusion silently reducing high counts.
+  for (let i = 0; i < slotCount; i++){
+    const first = Math.floor(i * candidates.length / slotCount);
+    const last = Math.floor((i + 1) * candidates.length / slotCount) - 1;
+    slots.push(candidates[randomInt(first, last)]);
   }
   db.runtime.saleDayKey = calendarDayKey(date);
   db.runtime.saleSchedule = slots.sort((a,b)=>a-b).map(ts => ({ts, done:false}));
@@ -1716,8 +1849,8 @@ async function openDynamicManager(externalDB=null){
       <label class="inline"><input type="checkbox" class="g-auto" ${globalDynamic.autoTiles ? "checked" : ""}> Auto-create a dynamic Vendit when a newly created Tile matches a keyword</label>
       <label style="margin-top:8px">Tile Name/Image Keywords<input type="text" class="g-keywords" value="${esc(globalDynamic.autoTileKeywords || "")}"></label>
       <div class="field-grid" style="margin-top:8px">
-        <label>Daily CitiNet Pings Min<input type="number" class="g-ping-min" min="0" max="12" value="${globalDynamic.salePingsMin}"></label>
-        <label>Daily CitiNet Pings Max<input type="number" class="g-ping-max" min="0" max="12" value="${globalDynamic.salePingsMax}"></label>
+        <label>Daily CitiNet Pings Min<input type="number" class="g-ping-min" min="0" max="48" value="${globalDynamic.salePingsMin}"></label>
+        <label>Daily CitiNet Pings Max<input type="number" class="g-ping-max" min="0" max="48" value="${globalDynamic.salePingsMax}"></label>
       </div>
       <div class="status-strip" style="margin-top:9px"><span>Auto-Tile Template: <b class="template-name">${esc(templateName())}</b></span><button class="btn danger" type="button" data-clear-template ${globalDynamic.autoTileTemplateId ? "" : "disabled"}><i class="fas fa-unlink"></i> Clear Template</button></div>
       <div class="muted" style="margin-top:7px">The template is only a blueprint for dynamic settings, source pools, and sale rules. Every matching Tile receives its own unique Vendit and fresh 3–6 product inventory. With no template selected, new auto-Tiles use global defaults.</div>
@@ -1737,8 +1870,12 @@ async function openDynamicManager(externalDB=null){
       const root = html[0].querySelector(`#${bodyId}`);
       globalDynamic.autoTiles = root.querySelector(".g-auto").checked;
       globalDynamic.autoTileKeywords = root.querySelector(".g-keywords").value.trim();
-      globalDynamic.salePingsMin = clampInt(root.querySelector(".g-ping-min").value, 0, 12);
-      globalDynamic.salePingsMax = clampInt(root.querySelector(".g-ping-max").value, globalDynamic.salePingsMin, 12);
+      const previousPingsMin = globalDynamic.salePingsMin;
+      const previousPingsMax = globalDynamic.salePingsMax;
+      globalDynamic.salePingsMin = clampInt(root.querySelector(".g-ping-min").value, 0, 48);
+      globalDynamic.salePingsMax = clampInt(root.querySelector(".g-ping-max").value, globalDynamic.salePingsMin, 48);
+      // Rebuild on the next calendar tick when the GM changes the ping range.
+      if (previousPingsMin !== globalDynamic.salePingsMin || previousPingsMax !== globalDynamic.salePingsMax) db.runtime.saleDayKey = "";
       db.defaults.dynamic = globalDynamic; await saveAll(db);
     }}, close:{label:"Close"}},
     render:html => {
@@ -2212,7 +2349,7 @@ async function openShop(venditId, {interactionTile=null, interactionToken=null, 
     const factor = it.saleUntil ? Number(it.saleFactor || 100) : Number(it.priceFactor || 100);
     const badge = it.saleUntil ? `<span class="badge secondary">CITINET ${factor}%</span>` : (it.dynamicManaged && factor !== 100 ? `<span class="badge">MARKET ${factor}%</span>` : "");
     return `<div class="card product-card" data-product="${i}"><div class="item-row">
-      <div class="item-left"><img class="thumb" src="${esc(it.img || 'icons/svg/item-bag.svg')}"><div class="item-copy"><div class="name" title="${esc(it.name)}">${esc(it.name)}</div><div class="product-meta"><span class="price">${Number(it.price||0)} eb</span><span class="stock">${stockText}</span>${badge}</div></div></div>
+      <div class="item-left"><button type="button" class="inspect-image" data-inspect="${i}" title="Inspect item" aria-label="${esc('Inspect '+it.name)}"><img class="thumb" src="${esc(previewImagePath(it.img))}" alt=""></button><div class="item-copy"><button type="button" class="name inspect-name" data-inspect="${i}" title="Inspect item">${esc(it.name)}</button><div class="product-meta"><span class="price">${Number(it.price||0)} eb</span><span class="stock">${stockText}</span>${badge}</div></div></div>
       <button class="btn buy" data-i="${i}" ${soldOut?'disabled':''}><i class="fas ${soldOut?'fa-ban':'fa-shopping-cart'}"></i> ${soldOut?'SOLD OUT':'BUY'}</button>
     </div></div>`;
   }).join("") : `<div class="card"><div class="muted" style="padding:8px;text-align:center">NO INVENTORY // CHECK BACK LATER</div></div>`;
@@ -2233,6 +2370,17 @@ async function openShop(venditId, {interactionTile=null, interactionToken=null, 
       const app = html[0].closest(".app"); app.classList.add(`dialog-host-${bodyId}`);
       forceFooterButtons(app, accent); autosizeDialog(app, bodyId); requestAnimationFrame(()=>autosizeDialog(app, bodyId)); dlg._mo=observeResize(app, bodyId);
       const root = html[0].querySelector(`#${bodyId}`);
+      root.querySelector("[data-list]")?.addEventListener("click", async ev => {
+        const control = ev.target.closest("[data-inspect]");
+        if (!control || control.disabled) return;
+        ev.preventDefault();
+        const stock = items[Number(control.dataset.inspect)];
+        if (!stock) return;
+        control.disabled = true;
+        try { await openStockPreview(shop, stock, buyer, accent); }
+        catch (error) { ui.notifications.warn(error.message || "Item preview unavailable."); }
+        finally { control.disabled = false; }
+      });
       root.querySelector("[data-list]")?.addEventListener("click", async ev => {
         const button = ev.target.closest(".buy");
         const iStr = button?.getAttribute("data-i"); if (iStr == null || button.disabled) return;
