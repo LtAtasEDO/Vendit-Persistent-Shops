@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0
+
+- Added clickable product names/images with read-only item descriptions, available details, market value and current Vendit price, including sold-out stock.
+- Added active-GM preview resolution for player-restricted compendium Items, with current-stock and Actor ownership checks.
+- Reused Bodega 2.4.0 inert description sanitization; secret blocks and interactive content are excluded.
+- Added minimum/verified/maximum ranges for the optional Simple Calendar and Monk's Active Tile Triggers integrations.
+- Reconciled the source runtime version and Binder SVG path with the repository manifest and bundled asset.
+- Existing database, purchases, stock generation, pricing, Tile bindings and calendar behavior are preserved.
+- Promoted clickable item inspection after user live GM/player validation.
+- Raised Daily CitiNet Pings Min/Max from 12 to 48 in the settings and scheduler. Defaults remain 1–3.
+- Replaced the two-hour exclusion/random retry schedule with unique quarter-hour opportunities spread across the advertising window, allowing all 48 requested opportunities on standard calendars.
+- Ping range changes rebuild the current day schedule on the next calendar tick.
+- Active-scene eligibility and skipped-time single-message behavior remain in place.
+- Removed Vendit.webp asset from repository
+- Added Third Party Asset Credits and R.Tal Legal / Homebrew Content Policy on `README.md` and `THIRD_PARTY_NOTICES.md`
+
 ## 1.2.6
 
 - Replaced the bundled **Vendit™ Binder** icon with an SVG-based asset derived from the chosen CC0 SVG Repo vending-machine icon, recolored for Vendit using `#E64539` on `#1B1F21`.
